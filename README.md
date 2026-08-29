@@ -1,78 +1,91 @@
-# Aula 2 - Distribution Center 📦
+# Aula 3 - Derivação x Raw Query 🔍
 
 ## Contexto
 
-A aplicação de CRUD de produtos que vocês construíram na Aula 1 está fazendo sucesso, e a empresa fictícia **"Vende Tudo Ltda"** decidiu expandir as operações para além de um único depósito. Agora, cada produto cadastrado no sistema precisa informar **de qual centro de distribuição ele é despachado**.
+A "Vende Tudo Ltda" gostou tanto da busca por centro de distribuição que agora o time de produto quer mais formas de consultar o catálogo — só que dessa vez, o objetivo não é só *fazer funcionar*, e sim **entender as diferentes formas de escrever uma consulta no Spring Data JPA** e quando usar cada uma.
 
-A empresa opera em três centros de distribuição:
+Hoje em dia, no `ProductRepository`, só existem dois jeitos de buscar dados: os métodos derivados simples (`findAllByActiveTrue`, `findAllByActiveTrueAndDistributionCenter`) e a projeção customizada da contagem por centro de distribuição. Chegou a hora de explorar o espectro completo:
 
-- **RJ** — Rio de Janeiro
-- **MG** — Minas Gerais
-- **SP** — São Paulo
+- **Derived Query Methods** — o Spring Data escreve o SQL pra você, a partir do nome do método (`findByCategoryAndActiveTrue`, `findByPriceGreaterThan`, etc.).
+- **Raw Query** — você escreve a consulta manualmente com `@Query`, seja em JPQL (orientado a entidades) ou em SQL nativo (orientado a tabelas/colunas de verdade).
 
-O time de logística pediu duas coisas para o time de desenvolvimento (vocês):
+Cada abordagem tem seu lugar. A tarefa de hoje é implementar 5 endpoints que exercitam as duas formas, incluindo um desafio extra onde **nem uma nem outra pode ser usada**.
 
-1. Que o cadastro de produto passe a exigir um centro de distribuição válido (um dos três acima — nada de aceitar qualquer string solta).
-2. Que exista uma forma de consultar rapidamente **quais produtos estão em um determinado centro de distribuição**, para ajudar o time a organizar o estoque local.
-
-O código-base desta aula é **exatamente o mesmo** da Aula 1 (`aula-1-crud-java-basico`). O trabalho de vocês é evoluí-lo.
+O código-base desta aula é o resultado da **Aula 2 já resolvida** (com o `distributionCenter` implementado). Todo mundo parte dali.
 
 ## Objetivo
 
-Adicionar o campo `distributionCenter` ao domínio de `Product`, modelado como um **enum Java** com exatamente três valores possíveis: `RJ`, `MG`, `SP`.
+Implementar 5 endpoints novos em `ProductController`, cobrindo Derived Query Methods, Raw Query (JPQL e SQL nativo) e lógica de negócio pura em uma classe de modelo.
 
-## O que precisa ser feito
+## Os 5 endpoints
 
-### 1. Criar o enum `DistributionCenter`
-
-Um novo enum, com os três valores fixos: `RJ`, `MG`, `SP`. Pensem em onde ele deve morar no pacote do domínio de produto.
-
-### 2. Adicionar o campo na entidade `Product`
-
-A entidade `Product` (JPA) precisa ganhar um novo atributo `distributionCenter`, do tipo do enum criado, persistido no banco. Vale revisar como o JPA mapeia enums (`@Enumerated`) e decidir — e justificar — se a persistência deve ser por `STRING` ou por `ORDINAL`.
-
-### 3. Migration do banco
-
-Como o schema é versionado com Flyway, será necessário criar uma **nova migration** (`V5__...`) que:
-- Adicione a coluna `distribution_center` na tabela `product`;
-- Popule os produtos já existentes (seed da Aula 1) com um valor válido de centro de distribuição, para não deixar dado inconsistente pra trás.
-
-### 4. Atualizar o `RequestProduct`
-
-O record usado para criar/atualizar produtos precisa aceitar o novo campo, com a validação adequada (afinal, é um campo obrigatório — pensem em qual anotação de bean validation faz sentido para um campo que não pode vir nulo).
-
-### 5. Atualizar o construtor/mapeamento de `Product`
-
-O construtor que recebe um `RequestProduct` (e qualquer outro ponto que monte um `Product` a partir da requisição) precisa passar a propagar o `distributionCenter`.
-
-### 6. Novo endpoint de consulta
-
-Criar um endpoint em `ProductController` para buscar produtos por centro de distribuição, por exemplo:
+### 1. Filtrar por categoria — Derived Query Method
 
 ```
-GET /product/distribution-center/{distributionCenter}
+GET /product?category={category}
 ```
 
-Esse endpoint deve retornar apenas os produtos ativos (`active = true`) associados ao centro de distribuição informado. Pensem em como o `ProductRepository` precisa mudar para suportar essa busca de forma eficiente (sem repetir o padrão de trazer tudo e filtrar em memória, como foi feito propositalmente — e de forma exagerada — no endpoint de categoria da Aula 1).
+Retorna a lista de produtos ativos de uma categoria específica.
+
+**Regra:** o filtro tem que acontecer no banco, via um Derived Query Method no `ProductRepository` (ex: algo no estilo `findAllByActiveTrueAndCategory`).
+
+**PROIBIDO:** carregar todos os produtos e filtrar a lista em Java (é literalmente o que o endpoint `/product/category/{categoryAsPath}` da Aula 1 faz — e é feio de propósito. Aqui é pra fazer certo).
+
+### 2. Buscar produto por ID — Derived Query Method
+
+```
+GET /product/{id}
+```
+
+Retorna um único produto (200) ou 404 se não existir ou estiver inativo.
+
+**Regra:** a busca precisa ir direto no banco pelo ID informado no path, considerando também `active = true`. Dica: dá pra combinar duas condições no nome do método (`findBy...And...`).
+
+### 3. Filtrar por preço mínimo — Derived Query Method com operador
+
+```
+GET /product/price/above/{value}
+```
+
+Retorna produtos ativos com `price` maior que o valor informado.
+
+**Regra:** usar um Derived Query Method com o keyword de comparação do Spring Data (`GreaterThan`). Sem loop em Java, sem `@Query` — só o nome do método fazendo o trabalho.
+
+### 4. Buscar por nome — Raw Query (JPQL)
+
+```
+GET /product/search?term={term}
+```
+
+Retorna produtos ativos cujo nome contenha o termo pesquisado (case-insensitive).
+
+**Regra:** implementar com `@Query` em JPQL, usando `LIKE` (e `LOWER` ou equivalente para ignorar caixa). Essa é a primeira vez que vocês escrevem a query na mão — reparem a diferença de controle comparado ao Derived Query Method.
+
+### 5. EXTRA!! 🌶️ — Top 3 produtos mais caros — lógica em classe de modelo
+
+```
+GET /product/top-expensive
+```
+
+Retorna os 3 produtos ativos de maior `price` no catálogo.
+
+**PROIBIDO:** resolver isso via query — nem Derived Query Method, nem `@Query`, nem `ORDER BY` + `LIMIT` de qualquer tipo. A lógica de encontrar os 3 mais caros precisa estar em **uma classe de modelo** (ex: uma classe `TopExpensiveProducts` ou similar), que recebe a lista de produtos ativos (usando o método que já existe, `findAllByActiveTrue`) e calcula o top 3 em Java puro.
+
+A ideia aqui é treinar um raciocínio diferente: nem toda lógica de negócio precisa (ou deve) virar SQL. Às vezes o lugar certo é o modelo de domínio.
 
 ## Critérios de aceite
 
-- O enum `DistributionCenter` existe e tem somente os valores `RJ`, `MG`, `SP`.
-- Um `POST /product` sem `distributionCenter`, ou com um valor que não seja um dos três válidos, deve ser rejeitado com erro de validação.
-- Um `POST /product` com um `distributionCenter` válido persiste corretamente e é possível ver isso no banco.
-- A migration V5 roda sem erro em um banco já populado pela V4 (sem quebrar o histórico do Flyway).
-- `GET /product/distribution-center/RJ` (ou MG/SP) retorna apenas os produtos ativos daquele centro.
+- Os endpoints 1, 2 e 3 não têm nenhum `@Query` — só Derived Query Methods.
+- O endpoint 4 usa `@Query` com JPQL.
+- O endpoint 5 não tem nenhuma ordenação/filtro feito no banco — a lista completa de ativos vem do repository e o cálculo do top 3 acontece numa classe de modelo dedicada.
+- Todos os endpoints respeitam o soft delete (`active = true`).
 - `CrudApplicationTests` continua compilando e passando.
 
 ## Dicas
 
-- Reaproveitem o padrão de código que já existe no projeto (records para request, `@RestControllerAdvice` para erros, etc.) — o objetivo aqui é estender, não reinventar.
-- Testem cada mudança no Postman antes de seguir pra próxima, igual fizemos na Aula 1.
-- Se dropar o schema local pra testar a migration do zero, cuidado com o `flyway_schema_history` — mesma pegadinha que tivemos na Aula 1 com o checksum.
-
-## Desafio bônus (opcional)
-
-Adicionar também um endpoint que retorne uma contagem de produtos ativos por centro de distribuição (ex.: `{"RJ": 5, "MG": 3, "SP": 7}`), útil para um futuro dashboard de estoque.
+- Deem uma olhada na [documentação de Query Methods do Spring Data JPA](https://docs.spring.io/spring-data/jpa/reference/jpa/query-methods.html) pra ver a lista de keywords suportadas (`GreaterThan`, `Containing`, `And`, etc.) — muita coisa que parece exigir `@Query` na verdade tem um Derived Query Method pronto.
+- No endpoint 4, pensem em como fica a mesma busca se fosse feita como Derived Query Method (`findAllByActiveTrueAndNameContainingIgnoreCase`, por exemplo) — vale comparar as duas formas de resolver o mesmo problema.
+- Testem cada endpoint via Postman/coleção antes de seguir pro próximo.
 
 ---
 
