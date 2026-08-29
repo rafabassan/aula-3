@@ -1,0 +1,203 @@
+{
+  "info": {
+    "name": "Aula 2 - Distribution Center (Resolvido)",
+    "description": "Colecao de requests para validar a solucao do exercicio de Distribution Center (RJ/MG/SP) sobre o CRUD de produtos.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Product",
+      "item": [
+        {
+          "name": "Listar todos os produtos ativos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/product",
+              "host": ["{{baseUrl}}"],
+              "path": ["product"]
+            }
+          }
+        },
+        {
+          "name": "Criar produto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cadeira Gamer\",\n  \"price\": 89900,\n  \"category\": \"furniture\",\n  \"distributionCenter\": \"SP\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/product",
+              "host": ["{{baseUrl}}"],
+              "path": ["product"]
+            }
+          }
+        },
+        {
+          "name": "Criar produto - distributionCenter invalido (deve dar 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Produto Invalido\",\n  \"price\": 1000,\n  \"category\": \"clothes\",\n  \"distributionCenter\": \"BA\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/product",
+              "host": ["{{baseUrl}}"],
+              "path": ["product"]
+            }
+          }
+        },
+        {
+          "name": "Atualizar produto",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{productId}}\",\n  \"name\": \"Cadeira Gamer Pro\",\n  \"price\": 99900,\n  \"category\": \"furniture\",\n  \"distributionCenter\": \"RJ\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/product",
+              "host": ["{{baseUrl}}"],
+              "path": ["product"]
+            }
+          }
+        },
+        {
+          "name": "Remover produto (soft delete)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/product/{{productId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["product", "{{productId}}"]
+            }
+          }
+        },
+        {
+          "name": "Buscar por categoria (path + header + param + body)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "categoryAsHeader", "value": "electronics" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"electronics\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/product/category/electronics?categoryAsParam=electronics",
+              "host": ["{{baseUrl}}"],
+              "path": ["product", "category", "electronics"],
+              "query": [
+                { "key": "categoryAsParam", "value": "electronics" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Distribution Center",
+      "item": [
+        {
+          "name": "Buscar produtos por distribution center - RJ",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/product/distribution-center/RJ",
+              "host": ["{{baseUrl}}"],
+              "path": ["product", "distribution-center", "RJ"]
+            }
+          }
+        },
+        {
+          "name": "Buscar produtos por distribution center - MG",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/product/distribution-center/MG",
+              "host": ["{{baseUrl}}"],
+              "path": ["product", "distribution-center", "MG"]
+            }
+          }
+        },
+        {
+          "name": "Buscar produtos por distribution center - SP",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/product/distribution-center/SP",
+              "host": ["{{baseUrl}}"],
+              "path": ["product", "distribution-center", "SP"]
+            }
+          }
+        },
+        {
+          "name": "Buscar produtos por distribution center invalido (deve dar 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/product/distribution-center/BA",
+              "host": ["{{baseUrl}}"],
+              "path": ["product", "distribution-center", "BA"]
+            }
+          }
+        },
+        {
+          "name": "Contagem de produtos por distribution center (bonus)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/product/distribution-center/count",
+              "host": ["{{baseUrl}}"],
+              "path": ["product", "distribution-center", "count"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

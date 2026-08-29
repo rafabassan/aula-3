@@ -3,8 +3,6 @@ package com.example.crud.domain.product;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.UUID;
-
 @Table(name="product")
 @Entity(name="product")
 @Getter
@@ -24,10 +22,14 @@ public class Product {
 
     private String category;
 
+    @Enumerated(EnumType.STRING)
+    private DistributionCenter distributionCenter;
+
     public Product(RequestProduct requestProduct){
         this.name = requestProduct.name();
         this.price = requestProduct.price();
         this.category = requestProduct.category();
+        this.distributionCenter = requestProduct.distributionCenter();
         this.active = true;
     }
 }

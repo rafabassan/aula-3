@@ -1,5 +1,7 @@
 package com.example.crud.controllers;
 
+import com.example.crud.domain.product.DistributionCenter;
+import com.example.crud.domain.product.DistributionCenterCount;
 import com.example.crud.domain.product.Product;
 import com.example.crud.domain.product.ProductRepository;
 import com.example.crud.domain.product.RequestCategory;
@@ -7,15 +9,15 @@ import com.example.crud.domain.product.RequestProduct;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.repository.query.Param;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/product")
@@ -24,13 +26,13 @@ public class ProductController {
     private ProductRepository repository;
 
     @GetMapping
-    public ResponseEntity getAllProducts(){
+    public ResponseEntity<List<Product>> getAllProducts(){
         var allProducts = repository.findAllByActiveTrue();
         return ResponseEntity.ok(allProducts);
     }
 
     @GetMapping("/category/{categoryAsPath}")
-    public ResponseEntity getProductsByCategory(
+    public ResponseEntity<List<Product>> getProductsByCategory(
             @RequestHeader String categoryAsHeader,
             @PathVariable String categoryAsPath,
             @RequestBody @Valid RequestCategory categoryAsBody,
@@ -48,8 +50,24 @@ public class ProductController {
         return ResponseEntity.ok(filteredProducts);
     }
 
+    @GetMapping("/distribution-center/{distributionCenter}")
+    public ResponseEntity<List<Product>> getProductsByDistributionCenter(@PathVariable DistributionCenter distributionCenter){
+        var products = repository.findAllByActiveTrueAndDistributionCenter(distributionCenter);
+        return ResponseEntity.ok(products);
+    }
+
+    @GetMapping("/distribution-center/count")
+    public ResponseEntity<Map<String, Long>> countProductsByDistributionCenter(){
+        List<DistributionCenterCount> counts = repository.countActiveByDistributionCenter();
+        Map<String, Long> response = new LinkedHashMap<>();
+        for (DistributionCenterCount count : counts) {
+            response.put(count.getDistributionCenter().name(), count.getTotal());
+        }
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping
-    public ResponseEntity registerProduct(@RequestBody @Valid RequestProduct data){
+    public ResponseEntity<Void> registerProduct(@RequestBody @Valid RequestProduct data){
         Product newProduct = new Product(data);
         repository.save(newProduct);
         return ResponseEntity.ok().build();
@@ -57,12 +75,13 @@ public class ProductController {
 
     @PutMapping
     @Transactional
-    public ResponseEntity updateProduct(@RequestBody @Valid RequestProduct data){
+    public ResponseEntity<Product> updateProduct(@RequestBody @Valid RequestProduct data){
         Optional<Product> optionalProduct = repository.findById(data.id());
         if (optionalProduct.isPresent()) {
             Product product = optionalProduct.get();
             product.setName(data.name());
             product.setPrice(data.price());
+            product.setDistributionCenter(data.distributionCenter());
             return ResponseEntity.ok(product);
         } else {
             throw new EntityNotFoundException();
@@ -71,7 +90,7 @@ public class ProductController {
 
     @DeleteMapping("/{id}")
     @Transactional
-    public ResponseEntity deleteProduct(@PathVariable String id){
+    public ResponseEntity<Void> deleteProduct(@PathVariable String id){
         Optional<Product> optionalProduct = repository.findById(id);
         if (optionalProduct.isPresent()) {
             Product product = optionalProduct.get();
