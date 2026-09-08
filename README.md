@@ -31,20 +31,20 @@ Retorna a lista de produtos ativos de uma categoria específica.
 
 **PROIBIDO:** carregar todos os produtos e filtrar a lista em Java (é literalmente o que o endpoint `/product/category/{categoryAsPath}` da Aula 1 faz — e é feio de propósito. Aqui é pra fazer certo).
 
-### 2. Buscar produto por ID — Derived Query Method
+### 2. Filtrar por centro de distribuição e categoria — Derived Query Method com múltiplas condições
 
 ```
-GET /product/{id}
+GET /product/distribution-center/{distributionCenter}?category={category}
 ```
 
-Retorna um único produto (200) ou 404 se não existir ou estiver inativo.
+Retorna os produtos ativos daquele centro de distribuição que **também** pertencem à categoria informada.
 
-**Regra:** a busca precisa ir direto no banco pelo ID informado no path, considerando também `active = true`. Dica: dá pra combinar duas condições no nome do método (`findBy...And...`).
+**Regra:** implementar com um Derived Query Method combinando três condições no nome (`active` + `distributionCenter` + `category`), usando o keyword `And`. Sem `@Query`, sem loop em Java. Dica: dá pra pensar nele como uma evolução do `findAllByActiveTrueAndDistributionCenter` que já existe — só que agora com mais uma condição no meio.
 
 ### 3. Filtrar por preço mínimo — Derived Query Method com operador
 
 ```
-GET /product/price/above/{value}
+GET /product?minPrice={value}
 ```
 
 Retorna produtos ativos com `price` maior que o valor informado.
@@ -54,12 +54,14 @@ Retorna produtos ativos com `price` maior que o valor informado.
 ### 4. Buscar por nome — Raw Query (JPQL)
 
 ```
-GET /product/search?term={term}
+GET /product?nameContains={term}
 ```
 
 Retorna produtos ativos cujo nome contenha o termo pesquisado (case-insensitive).
 
 **Regra:** implementar com `@Query` em JPQL, usando `LIKE` (e `LOWER` ou equivalente para ignorar caixa). Essa é a primeira vez que vocês escrevem a query na mão — reparem a diferença de controle comparado ao Derived Query Method.
+
+> **Dica técnica:** agora `/product` tem quatro `@GetMapping` diferentes (sem filtro, `?category=`, `?minPrice=` e `?nameContains=`), todos no mesmo path. Use o atributo `params` do `@GetMapping` (ex: `params = "minPrice"`) pra dizer ao Spring qual método atende cada combinação de query params — sem isso vocês vão esbarrar num erro de mapeamento ambíguo.
 
 ### 5. EXTRA!! 🌶️ — Top 3 produtos mais caros — lógica em classe de modelo
 
@@ -68,6 +70,8 @@ GET /product/top-expensive
 ```
 
 Retorna os 3 produtos ativos de maior `price` no catálogo.
+
+> Repare que esse aqui **não** virou `/product?top=3` ou algo do tipo: "top expensive" não é um filtro do recurso `product`, é uma coleção derivada/computada — por isso continua fazendo sentido como um path próprio, sem verbo, no plural implícito de `product`.
 
 **PROIBIDO:** resolver isso via query — nem Derived Query Method, nem `@Query`, nem `ORDER BY` + `LIMIT` de qualquer tipo. A lógica de encontrar os 3 mais caros precisa estar em **uma classe de modelo** (ex: uma classe `TopExpensiveProducts` ou similar), que recebe a lista de produtos ativos (usando o método que já existe, `findAllByActiveTrue`) e calcula o top 3 em Java puro.
 
